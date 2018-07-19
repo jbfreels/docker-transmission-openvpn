@@ -7,15 +7,22 @@ VOLUME /config
 # Update packages and install software
 RUN apt-get update \
     && apt-get -y upgrade \
-    && apt-get -y install software-properties-common wget \
+    && apt-get -y install software-properties-common wget git \
     && add-apt-repository ppa:transmissionbt/ppa \
     && wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add - \
     && echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" > /etc/apt/sources.list.d/openvpn-aptrepo.list \
     && apt-get update \
     && apt-get install -y sudo transmission-cli transmission-common transmission-daemon curl rar unrar zip unzip ufw iputils-ping openvpn \
+    python2.7 python2.7-pysqlite2 && ln -sf /usr/bin/python2.7 /usr/bin/python2 \
     && wget https://github.com/Secretmapper/combustion/archive/release.zip \
     && unzip release.zip -d /opt/transmission-ui/ \
     && rm release.zip \
+    && wget https://github.com/ronggang/twc-release/raw/master/src.tar.gz \
+    && mkdir /opt/transmission-ui/transmission-web-control \
+    && tar -xvf src.tar.gz -C /opt/transmission-ui/transmission-web-control/ \
+    && rm src.tar.gz \
+    && git clone git://github.com/endor/kettu.git /opt/transmission-ui/kettu \
+    && apt-get install -y tinyproxy telnet \
     && wget https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64.deb \
     && dpkg -i dumb-init_1.2.0_amd64.deb \
     && rm -rf dumb-init_1.2.0_amd64.deb \
@@ -27,6 +34,7 @@ RUN apt-get update \
 
 ADD openvpn/ /etc/openvpn/
 ADD transmission/ /etc/transmission/
+ADD tinyproxy /opt/tinyproxy/
 
 ENV OPENVPN_USERNAME=**None** \
     OPENVPN_PASSWORD=**None** \
@@ -57,7 +65,7 @@ ENV OPENVPN_USERNAME=**None** \
     TRANSMISSION_LPD_ENABLED=false \
     TRANSMISSION_MAX_PEERS_GLOBAL=200 \
     TRANSMISSION_MESSAGE_LEVEL=2 \
-    TRANSMISSION_PEER_CONGESTION_ALGORITHM="" \
+    TRANSMISSION_PEER_CONGESTION_ALGORITHM= \
     TRANSMISSION_PEER_ID_TTL_HOURS=6 \
     TRANSMISSION_PEER_LIMIT_GLOBAL=200 \
     TRANSMISSION_PEER_LIMIT_PER_TORRENT=50 \
@@ -78,6 +86,8 @@ ENV OPENVPN_USERNAME=**None** \
     TRANSMISSION_RPC_AUTHENTICATION_REQUIRED=false \
     TRANSMISSION_RPC_BIND_ADDRESS=0.0.0.0 \
     TRANSMISSION_RPC_ENABLED=true \
+    TRANSMISSION_RPC_HOST_WHITELIST= \
+    TRANSMISSION_RPC_HOST_WHITELIST_ENABLED=false \
     TRANSMISSION_RPC_PASSWORD=password \
     TRANSMISSION_RPC_PORT=9091 \
     TRANSMISSION_RPC_URL=/transmission/ \
@@ -86,7 +96,7 @@ ENV OPENVPN_USERNAME=**None** \
     TRANSMISSION_RPC_WHITELIST_ENABLED=false \
     TRANSMISSION_SCRAPE_PAUSED_TORRENTS_ENABLED=true \
     TRANSMISSION_SCRIPT_TORRENT_DONE_ENABLED=false \
-    TRANSMISSION_SCRIPT_TORRENT_DONE_FILENAME="" \
+    TRANSMISSION_SCRIPT_TORRENT_DONE_FILENAME= \
     TRANSMISSION_SEED_QUEUE_ENABLED=false \
     TRANSMISSION_SEED_QUEUE_SIZE=10 \
     TRANSMISSION_SPEED_LIMIT_DOWN=100 \
@@ -104,11 +114,17 @@ ENV OPENVPN_USERNAME=**None** \
     TRANSMISSION_WATCH_DIR_ENABLED=true \
     TRANSMISSION_HOME=/data/transmission-home \
     ENABLE_UFW=false \
-    ENABLE_COMBUSTION_UI=false \
-    PUID="" \
-    PGID="" \
-    TRANSMISSION_WEB_HOME=""
+    UFW_ALLOW_GW_NET=false \
+    UFW_EXTRA_PORTS= \
+    TRANSMISSION_WEB_UI= \
+    PUID= \
+    PGID= \
+    TRANSMISSION_WEB_HOME= \
+    DROP_DEFAULT_ROUTE= \
+    WEBPROXY_ENABLED=false \
+    WEBPROXY_PORT=8888
 
 # Expose port and run
 EXPOSE 9091
+EXPOSE 8888
 CMD ["dumb-init", "/etc/openvpn/start.sh"]

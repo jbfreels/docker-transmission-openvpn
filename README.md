@@ -1,12 +1,39 @@
-# Transmission with WebUI and OpenVPN
-Docker container running Transmission torrent client with WebUI while connecting to OpenVPN.
-It bundles certificates and configurations for a bunch of VPN providers and if you're using PIA as provider it will update Transmission hourly with assigned open port. Please read the instructions below, and read it again before posting an issue :)
+# OpenVPN and Transmission with WebUI
 
-### about:maintenance (aka I NEED HELP)
+[![Docker Automated build](https://img.shields.io/docker/automated/haugene/transmission-openvpn.svg)](https://hub.docker.com/r/haugene/transmission-openvpn/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/haugene/transmission-openvpn.svg)](https://hub.docker.com/r/haugene/transmission-openvpn/)
+[![Join the chat at https://gitter.im/docker-transmission-openvpn/Lobby](https://badges.gitter.im/docker-transmission-openvpn/Lobby.svg)](https://gitter.im/docker-transmission-openvpn/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-The classic story! I created this image for my own use and figured that sharing is caring, right? A lot has happened since then. With the help of contributors (thank you!) and feature requests from the community the number of providers, features and users have increased quite drastically.
 
-If you're interested in joining as a collaborator: Find an issue and fix it, then mention in the pull-request that you're interested in helping out on a more permanent basis. That would make my day ;)
+This container contains OpenVPN and Transmission with a configuration
+where Transmission is running only when OpenVPN has an active tunnel.
+It bundles configuration files for many popular VPN providers to make the setup easier.
+
+You need to specify your provider and credentials with environment variables,
+as well as mounting volumes where the data should be stored.
+An example run command to get you going is provided below.
+
+Also worth mentioning.
+If you want to route web traffic through the same tunnel that Transmission is using there
+is a pre-installed Tinyproxy which will expose a proxy on port 8888 when enabled.
+And if you're using PIA as provider it will update Transmission hourly with assigned open port.
+
+GL HF! And if you run into problems, please check the README twice and maybe try the gitter chat before opening an issue :)
+
+### about:maintenance
+
+This image was created for my own use, but sharing is caring so it had to be open source.
+The number of users, issues and pull-requests have gone up quite drastically since that
+and that's great! It's been a lot of fun watching the activity level go up
+and my pet project improve with it.
+
+But maintaining it takes time, and if you ever feel like donating, here's a button:
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=73XHRSK65KQYC)
+
+You can also help out by submitting pull-requests or helping others with
+open issues or in the gitter chat. A big thanks to everyone who has contributed so far!
+And if you could be interested in joining as collaborator, let me know.
 
 
 ## Run container from Docker registry
@@ -17,10 +44,12 @@ To run the container use this command:
 $ docker run --cap-add=NET_ADMIN --device=/dev/net/tun -d \
               -v /your/storage/path/:/data \
               -v /etc/localtime:/etc/localtime:ro \
-              -e "OPENVPN_PROVIDER=PIA" \
-              -e "OPENVPN_CONFIG=Netherlands" \
-              -e "OPENVPN_USERNAME=user" \
-              -e "OPENVPN_PASSWORD=pass" \
+              -e OPENVPN_PROVIDER=PIA \
+              -e OPENVPN_CONFIG=Netherlands \
+              -e OPENVPN_USERNAME=user \
+              -e OPENVPN_PASSWORD=pass \
+              -e WEBPROXY_ENABLED=false \
+              -e LOCAL_NETWORK=192.168.0.0/16 \
               --log-driver json-file \
               --log-opt max-size=10m \
               -p 9091:9091 \
@@ -35,6 +64,15 @@ Find available OpenVPN configurations by looking in the openvpn folder of the Gi
 ```
 -e "OPENVPN_CONFIG=ipvanish-AT-Vienna-vie-c02"
 ```
+
+You can also provide a comma separated list of openvpn configuration filenames.
+If you provide a list, a file will be randomly chosen in the list, this is useful for redundancy setups. For example:
+```
+-e "OPENVPN_CONFIG=ipvanish-AT-Vienna-vie-c02,ipvanish-FR-Paris-par-a01,ipvanish-DE-Frankfurt-fra-a01"
+```
+If you provide a list and the selected server goes down, after the value of ping-timeout the container will be restarted and a server will be randomly chosen, note that the faulty server can be chosen again, if this should occur, the container will be restarted again until a working server is selected.  
+
+To make sure this work in all cases, you should add ```--pull-filter ignore ping``` to your OPENVPN_OPTS variable.  
 
 As you can see, the container also expects a data volume to be mounted.
 This is where Transmission will store your downloads, incomplete downloads and look for a watch directory for new .torrent files.
@@ -51,6 +89,7 @@ This is a list of providers that are bundled within the image. Feel free to crea
 | BlackVPN | `BLACKVPN` |
 | BTGuard | `BTGUARD` |
 | Cryptostorm | `CRYPTOSTORM` |
+| Cypherpunk | `CYPHERPUNK` |
 | FrootVPN | `FROOT` |
 | FrostVPN | `FROSTVPN` |
 | Giganews | `GIGANEWS` |
@@ -61,6 +100,7 @@ This is a list of providers that are bundled within the image. Feel free to crea
 | IPVanish | `IPVANISH` |
 | Ivacy | `IVACY` |
 | IVPN | `IVPN` |
+| Mullvad | `MULLVAD` |
 | Newshosting | `NEWSHOSTING` |
 | NordVPN | `NORDVPN` |
 | OVPN | `OVPN` |
@@ -76,6 +116,7 @@ This is a list of providers that are bundled within the image. Feel free to crea
 | SmartVPN | `SMARTVPN` |
 | TigerVPN | `TIGER` |
 | TorGuard | `TORGUARD` |
+| TunnelBear | `TUNNELBEAR`|
 | UsenetServerVPN | `USENETSERVER` |
 | Windscribe | `WINDSCRIBE` |
 | VPNArea.com | `VPNAREA` |
@@ -97,7 +138,7 @@ This is a list of providers that are bundled within the image. Feel free to crea
 |----------|----------|-------|
 |`OPENVPN_CONFIG` | Sets the OpenVPN endpoint to connect to. | `OPENVPN_CONFIG=UK Southampton`|
 |`OPENVPN_OPTS` | Will be passed to OpenVPN on startup | See [OpenVPN doc](https://openvpn.net/index.php/open-source/documentation/manuals/65-openvpn-20x-manpage.html) |
-|`LOCAL_NETWORK` | Sets the local network that should have access. | `LOCAL_NETWORK=192.168.0.0/24`|
+|`LOCAL_NETWORK` | Sets the local network that should have access. Accepts comma separated list. | `LOCAL_NETWORK=192.168.0.0/24`|
 
 ### Firewall configuration options
 When enabled, the firewall blocks everything except traffic to the peer port and traffic to the rpc port from the LOCAL_NETWORK and the internal docker gateway.
@@ -107,16 +148,18 @@ If TRANSMISSION_PEER_PORT_RANDOM_ON_START is enabled then it allows traffic to t
 | Variable | Function | Example |
 |----------|----------|-------|
 |`ENABLE_UFW` | Enables the firewall | `ENABLE_UFW=true`|
+|`UFW_ALLOW_GW_NET` | Allows the gateway network through the firewall. Off defaults to only allowing the gateway. | `UFW_ALLOW_GW_NET=true`|
+|`UFW_EXTRA_PORTS` | Allows the comma separated list of ports through the firewall. Respsects UFW_ALLOW_GW_NET. | `UFW_EXTRA_PORTS=9910,23561,443`|
 
 ### Alternative web UIs
 You can override the default web UI by setting the ```TRANSMISSION_WEB_HOME``` environment variable. If set, Transmission will look there for the Web Interface files, such as the javascript, html, and graphics files.
 
-[Combustion UI](https://github.com/Secretmapper/combustion) comes bundled with the container. You can enable it by setting ```ENABLE_COMBUSTION_UI=true```. Note that this will override the ```TRANSMISSION_WEB_HOME``` variable if set.
+[Combustion UI](https://github.com/Secretmapper/combustion), [Kettu](https://github.com/endor/kettu) and [Transmission-Web-Control](https://github.com/ronggang/transmission-web-control/) come bundled with the container. You can enable either of them by setting```TRANSMISSION_WEB_UI=combustion```, ```TRANSMISSION_WEB_UI=kettu``` or ```TRANSMISSION_WEB_UI=transmission-web-control```, respectively. Note that this will override the ```TRANSMISSION_WEB_HOME``` variable if set.
 
 | Variable | Function | Example |
 |----------|----------|-------|
 |`TRANSMISSION_WEB_HOME` | Set Transmission web home | `TRANSMISSION_WEB_HOME=/path/to/web/ui`|
-|`ENABLE_COMBUSTION_UI` | Use the bundled Combustion web UI | `ENABLE_COMBUSTION_UI=true`|
+|`TRANSMISSION_WEB_UI` | Use the specified bundled web UI | `TRANSMISSION_WEB_UI=combustion`, `TRANSMISSION_WEB_UI=kettu` or `TRANSMISSION_WEB_UI=transmission-web-control`|
 
 ### Transmission configuration options
 
@@ -137,6 +180,18 @@ As you can see the variables are prefixed with `TRANSMISSION_`, the variable is 
 PS: `TRANSMISSION_BIND_ADDRESS_IPV4` will be overridden to the IP assigned to your OpenVPN tunnel interface.
 This is to prevent leaking the host IP.
 
+### Web proxy configuration options
+
+This container also contains a web-proxy server to allow you to tunnel your web-browser traffic through the same OpenVPN tunnel.
+This is useful if you are using a private tracker that needs to see you login from the same IP address you are torrenting from.
+The default listening port is 8888. Note that only ports above 1024 can be specified as all ports below 1024 are privileged 
+and would otherwise require root permissions to run.
+
+| Variable | Function | Example |
+|----------|----------|-------|
+|`WEBPROXY_ENABLED` | Enables the web proxy | `WEBPROXY_ENABLED=true`|
+|`WEBPROXY_PORT` | Sets the listening port | `WEBPROXY_PORT=8888` |
+
 ### User configuration options
 
 By default everything will run as the root user. However, it is possible to change who runs the transmission process.
@@ -146,6 +201,44 @@ You may set the following parameters to customize the user id that runs transmis
 |----------|----------|-------|
 |`PUID` | Sets the user id who will run transmission | `PUID=1003`|
 |`PGID` | Sets the group id for the transmission user | `PGID=1003` |
+
+### Dropping default route from iptables (advanced)
+
+Some VPNs do not override the default route, but rather set other routes with a lower metric.  
+This might lead to te default route (your untunneled connection) to be used.
+
+To drop the default route set the environment variable `DROP_DEFAULT_ROUTE` to `true`.
+
+*Note*: This is not compatible with all VPNs. You can check your iptables routing with the `ip r` command in a running container.
+
+### Custom pre/post scripts
+
+If you ever need to run custom code before or after transmission is executed or stopped, you can use the custom scripts feature.
+Custom scripts are located in the /scripts directory which is empty by default.
+To enable this feature, you'll need to mount the /scripts directory.
+
+Once /scripts is mounted you'll need to write your custom code in the following bash shell scripts:
+
+| Script | Function |
+|----------|----------|
+|/scripts/transmission-pre-start.sh | This shell script will be executed before transmission start |
+|/scripts/transmission-post-start.sh | This shell script will be executed after transmission start |
+|/scripts/transmission-pre-stop.sh | This shell script will be executed before transmission stop |
+|/scripts/transmission-post-stop.sh | This shell script will be executed after transmission stop |
+
+Don't forget to include the #!/bin/bash shebang and to make the scripts executable using chmod a+x
+
+### RSS plugin
+
+The Transmission RSS plugin can optionally be run as a separate container. It allow to download torrents based on an RSS URL, see [Plugin page](https://github.com/nning/transmission-rss).
+
+```
+$ docker run -d \
+      -e "RSS_URL=<URL>" \
+      --link <transmission-container>:transmission \
+      --name "transmission-rss" \
+      haugene/transmission-rss
+```
 
 #### Use docker env file
 Another way is to use a docker env file where you can easily store all your env variables and maintain multiple configurations for different providers.
@@ -181,6 +274,9 @@ $ docker run -d \
       -p 8080:8080 \
       haugene/transmission-openvpn-proxy
 ```
+## Access the RPC
+
+You need to add a / to the end of the URL to be able to connect. Example: http://my-host:9091/transmission/rpc/
 
 ## Known issues, tips and tricks
 

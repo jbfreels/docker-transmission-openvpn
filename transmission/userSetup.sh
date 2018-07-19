@@ -10,12 +10,20 @@ if [ -n "$PUID" ] && [ ! "$(id -u root)" -eq "$PUID" ]; then
     if [ ! "$(id -g ${RUN_AS})" -eq "$PGID" ]; then groupmod -o -g "$PGID" ${RUN_AS} ; fi
 
     echo "Setting owner for transmission paths to ${PUID}:${PGID}"
-    chown -R ${RUN_AS}:${RUN_AS} ${TRANSMISSION_HOME}
-    chown ${RUN_AS}:${RUN_AS} \
+    chown -R ${RUN_AS}:${RUN_AS} \
         /config \
+        ${TRANSMISSION_HOME} \
         ${TRANSMISSION_DOWNLOAD_DIR} \
         ${TRANSMISSION_INCOMPLETE_DIR} \
         ${TRANSMISSION_WATCH_DIR}
+        
+    echo "Setting permission for files (644) and directories (755)"
+    chmod -R go=rX,u=rwX \
+        /config \
+        ${TRANSMISSION_HOME} \
+        ${TRANSMISSION_DOWNLOAD_DIR} \
+        ${TRANSMISSION_INCOMPLETE_DIR} \
+        ${TRANSMISSION_WATCH_DIR}        
 fi
 
 echo "
